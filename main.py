@@ -1,15 +1,10 @@
 import sqlite3
 
-# Создаём подключение к базе данных (файл photo_supplies.db)
 conn = sqlite3.connect('photo_supplies.db')
 cursor = conn.cursor()
 
-# Включаем поддержку внешних ключей
 cursor.execute('PRAGMA foreign_keys = ON')
 
-# --- Создание таблиц (DDL) ---
-
-# 1. Таблица типов устройств (device_types) - классификатор
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS device_types (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -18,7 +13,6 @@ CREATE TABLE IF NOT EXISTS device_types (
 )
 ''')
 
-# 2. Таблица вендоров/производителей (vendors)
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS vendors (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -30,7 +24,6 @@ CREATE TABLE IF NOT EXISTS vendors (
 )
 ''')
 
-# 3. Таблица оборудования/продукции (equipment)
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS equipment (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -47,7 +40,6 @@ CREATE TABLE IF NOT EXISTS equipment (
 )
 ''')
 
-# 4. Таблица заявок (purchase_requests)
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS purchase_requests (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -58,7 +50,6 @@ CREATE TABLE IF NOT EXISTS purchase_requests (
 )
 ''')
 
-# 5. Таблица состава заявки (request_items) - связь многие-ко-многим
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS request_items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -74,19 +65,14 @@ CREATE TABLE IF NOT EXISTS request_items (
 
 print("Таблицы успешно созданы!")
 
-# --- Заполнение тестовыми данными (DML) ---
-
-# Очистка существующих данных (для повторного запуска)
 cursor.execute("DELETE FROM request_items")
 cursor.execute("DELETE FROM purchase_requests")
 cursor.execute("DELETE FROM equipment")
 cursor.execute("DELETE FROM vendors")
 cursor.execute("DELETE FROM device_types")
 
-# Сброс счётчиков автоинкремента
 cursor.execute("DELETE FROM sqlite_sequence")
 
-# 1. Заполняем типы устройств
 device_types_data = [
     ('Серверы', 'Серверное оборудование для ЦОД'),
     ('Рабочие станции', 'Высокопроизводительные ПК'),
@@ -101,7 +87,6 @@ cursor.executemany(
     device_types_data
 )
 
-# 2. Заполняем вендоров
 vendors_data = [
     ('Fujifilm', 'Япония', '+81-3-1234-5678', 5, 'Токио, Япония'),
     ('Kodak', 'США', '+1-585-724-4000', 4, 'Рочестер, Нью-Йорк'),
@@ -116,7 +101,6 @@ cursor.executemany(
     vendors_data
 )
 
-# 3. Заполняем оборудование
 equipment_data = [
     ('Фотобумага Glossy', 4, 1, 2500.00, 0, 12, 'Целлюлоза', 'Глянцевая фотобумага A4'),
     ('Пленка 35мм', 5, 2, 1200.00, 6, 24, 'Полиэстер', 'Цветная негативная пленка'),
@@ -135,7 +119,6 @@ cursor.executemany(
     equipment_data
 )
 
-# 4. Создаём заявки
 import datetime
 
 today = datetime.date.today()
@@ -150,17 +133,13 @@ cursor.executemany(
     requests_data
 )
 
-# Получаем ID созданных заявок
 cursor.execute("SELECT id FROM purchase_requests ORDER BY id")
 request_ids = [row[0] for row in cursor.fetchall()]
 
-# Получаем ID оборудования для составления заявок
 cursor.execute("SELECT id, model, base_price FROM equipment WHERE model IN ('Фотобумага Glossy', 'Пленка 35мм', 'Химикаты (Концентрат)')")
 equipment_map = {row[1]: (row[0], row[2]) for row in cursor.fetchall()}
 
-# 5. Заполняем состав заявок (request_items) согласно примеру из документации
 request_items_data = [
-    # request_id, equipment_id, quantity, price_per_unit
     (request_ids[0], equipment_map['Фотобумага Glossy'][0], 20, equipment_map['Фотобумага Glossy'][1]),
     (request_ids[0], equipment_map['Пленка 35мм'][0], 50, equipment_map['Пленка 35мм'][1]),
     (request_ids[0], equipment_map['Химикаты (Концентрат)'][0], 10, equipment_map['Химикаты (Концентрат)'][1]),
@@ -171,7 +150,6 @@ cursor.executemany(
     request_items_data
 )
 
-# Обновляем итоговые суммы в заявках
 for request_id in request_ids:
     cursor.execute('''
         UPDATE purchase_requests 
@@ -183,12 +161,10 @@ for request_id in request_ids:
         WHERE id = ?
     ''', (request_id, request_id))
 
-# Сохраняем изменения
 conn.commit()
 
 print("Тестовые данные успешно загружены!")
 
-# --- Проверка: выводим содержимое таблиц ---
 print("\n--- Содержимое таблицы vendors ---")
 for row in cursor.execute("SELECT * FROM vendors"):
     print(row)
@@ -197,7 +173,7 @@ print("\n--- Содержимое таблицы equipment ---")
 for row in cursor.execute("SELECT e.id, e.model, dt.name, v.name, e.base_price FROM equipment e JOIN device_types dt ON e.type_id = dt.id JOIN vendors v ON e.vendor_id = v.id"):
     print(row)
 
-print("\n--- Детали заявки №1 (как в примере) ---")
+print("\n--- Детали заявки №1 ---")
 cursor.execute('''
     SELECT e.model, ri.quantity, ri.price_per_unit, ri.subtotal
     FROM request_items ri
@@ -213,7 +189,7 @@ for row in cursor.fetchall():
 
 print(f"{'ИТОГО:':<39} {total:>12,.2f}")
 
-# Закрываем соединение
 conn.close()
+
 
 print("\nГотово! База данных сохранена в файле 'photo_supplies.db'")
